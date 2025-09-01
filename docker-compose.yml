@@ -10,6 +10,12 @@ services:
     networks:
       - ailos-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok || exit 1"]
+      interval: 60s
+      timeout: 20s
+      retries: 2
+      start_period: 120s
 
   # Kafka Broker
   kafka:
@@ -52,7 +58,11 @@ services:
       - -c
       - >
         echo 'Aguardando Kafka estar totalmente pronto...' &&
-        sleep 10 &&
+        until kafka-topics --bootstrap-server kafka:9092 --list --command-config <(echo 'security.protocol=PLAINTEXT') > /dev/null 2>&1; do
+          echo 'Kafka ainda não está pronto, aguardando...' &&
+          sleep 5;
+        done &&
+        echo 'Kafka está pronto! Criando tópicos...' &&
         echo 'Criando tópico transferencias-realizadas...' &&
         kafka-topics --bootstrap-server kafka:9092 --create --topic transferencias-realizadas --partitions 1 --replication-factor 1 --if-not-exists &&
         echo 'Criando tópico tarifacoes-realizadas...' &&
@@ -144,8 +154,10 @@ services:
       - ailos-network
     restart: unless-stopped
     depends_on:
-      - kafka
-      - db-contacorrente-1
+      kafka:
+        condition: service_healthy
+      db-contacorrente-1:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 15s
@@ -173,8 +185,10 @@ services:
       - ailos-network
     restart: unless-stopped
     depends_on:
-      - kafka
-      - db-contacorrente-2
+      kafka:
+        condition: service_healthy
+      db-contacorrente-2:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 15s
@@ -266,15 +280,17 @@ services:
     networks:
       - ailos-network
     restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db-tarifa-1:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    depends_on:
-      - kafka
-      - db-tarifa-1
     volumes:
       - ./data/tarifa-1:/data
 
@@ -296,15 +312,17 @@ services:
     networks:
       - ailos-network
     restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db-tarifa-2:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    depends_on:
-      - kafka
-      - db-tarifa-2
     volumes:
       - ./data/tarifa-2:/data
 

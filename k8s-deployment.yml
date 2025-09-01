@@ -1,0 +1,264 @@
+# Deployment para API Conta Corrente
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ailos-contacorrente
+  labels:
+    app: ailos-contacorrente
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ailos-contacorrente
+  template:
+    metadata:
+      labels:
+        app: ailos-contacorrente
+    spec:
+      containers:
+      - name: ailos-contacorrente
+        image: ailos-contacorrente:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: https
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Development"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080;https://+:8081"
+        - name: ConnectionStrings__DefaultConnection
+          value: "Data Source=ContaCorrente.db"
+        - name: Jwt__Key
+          value: "dev-secret-please-change-in-production"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+---
+# Deployment para API Transferência
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ailos-transferencia
+  labels:
+    app: ailos-transferencia
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ailos-transferencia
+  template:
+    metadata:
+      labels:
+        app: ailos-transferencia
+    spec:
+      containers:
+      - name: ailos-transferencia
+        image: ailos-transferencia:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8081
+          name: https
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Development"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080;https://+:8081"
+        - name: ConnectionStrings__TransferenciaConnection
+          value: "Data Source=Transferencia.db"
+        - name: Jwt__Key
+          value: "dev-secret-please-change-in-production"
+        - name: ContaCorrente__BaseUrl
+          value: "http://ailos-contacorrente-service:80"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+---
+# Service para API Conta Corrente
+apiVersion: v1
+kind: Service
+metadata:
+  name: ailos-contacorrente-service
+  labels:
+    app: ailos-contacorrente
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8081
+    protocol: TCP
+    name: https
+  selector:
+    app: ailos-contacorrente
+---
+# Service para API Transferência
+apiVersion: v1
+kind: Service
+metadata:
+  name: ailos-transferencia-service
+  labels:
+    app: ailos-transferencia
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8081
+    protocol: TCP
+    name: https
+  selector:
+    app: ailos-transferencia
+---
+# Ingress para roteamento
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ailos-bankmore-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: ailos-bankmore.local
+    http:
+      paths:
+      - path: /api/contacorrente
+        pathType: Prefix
+        backend:
+          service:
+            name: ailos-contacorrente-service
+            port:
+              number: 80
+      - path: /api/transferencia
+        pathType: Prefix
+        backend:
+          service:
+            name: ailos-transferencia-service
+            port:
+              number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ailos-contacorrente-service
+            port:
+              number: 80
+---
+# HPA para API Conta Corrente
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ailos-contacorrente-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ailos-contacorrente
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# HPA para API Transferência
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ailos-transferencia-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ailos-transferencia
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

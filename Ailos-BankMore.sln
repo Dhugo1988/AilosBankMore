@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Itens de Solução", "Itens de Solução", "{380A7511-A354-6D7A-0CC0-8FA1F1BA7B6C}"
+	ProjectSection(SolutionItems) = preProject
+		docker-compose.yml = docker-compose.yml
+		k8s-deployment.yml = k8s-deployment.yml
+		nginx.conf = nginx.conf
+		README-REPLICAS.md = README-REPLICAS.md
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APIContaCorrente", "APIContaCorrente\APIContaCorrente.csproj", "{B25714FF-A94B-A72A-E526-9D8526C34353}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APITransferencia", "APITransferencia\APITransferencia.csproj", "{2C1A314E-AE36-B214-A316-C0D38D77855E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APITarifa", "APITarifa\APITarifa.csproj", "{3D2B425F-BF96-C325-B417-D1E49E88946F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APIContaCorrente.Tests", "APIContaCorrente.Tests\APIContaCorrente.Tests.csproj", "{28D657EB-1B6A-483C-8752-2B0B82F33331}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APITransferencia.Tests", "APITransferencia.Tests\APITransferencia.Tests.csproj", "{14021303-D5B1-4A5D-B15A-76E0876CE42B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APITarifa.Tests", "APITarifa.Tests\APITarifa.Tests.csproj", "{1EEA901A-9C23-4867-8BAE-489E0D0B6EE4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B25714FF-A94B-A72A-E526-9D8526C34353}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B25714FF-A94B-A72A-E526-9D8526C34353}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B25714FF-A94B-A72A-E526-9D8526C34353}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B25714FF-A94B-A72A-E526-9D8526C34353}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C1A314E-AE36-B214-A316-C0D38D77855E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C1A314E-AE36-B214-A316-C0D38D77855E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C1A314E-AE36-B214-A316-C0D38D77855E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C1A314E-AE36-B214-A316-C0D38D77855E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D2B425F-BF96-C325-B417-D1E49E88946F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D2B425F-BF96-C325-B417-D1E49E88946F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D2B425F-BF96-C325-B417-D1E49E88946F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D2B425F-BF96-C325-B417-D1E49E88946F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28D657EB-1B6A-483C-8752-2B0B82F33331}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28D657EB-1B6A-483C-8752-2B0B82F33331}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28D657EB-1B6A-483C-8752-2B0B82F33331}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28D657EB-1B6A-483C-8752-2B0B82F33331}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14021303-D5B1-4A5D-B15A-76E0876CE42B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14021303-D5B1-4A5D-B15A-76E0876CE42B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14021303-D5B1-4A5D-B15A-76E0876CE42B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14021303-D5B1-4A5D-B15A-76E0876CE42B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1EEA901A-9C23-4867-8BAE-489E0D0B6EE4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1EEA901A-9C23-4867-8BAE-489E0D0B6EE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1EEA901A-9C23-4867-8BAE-489E0D0B6EE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1EEA901A-9C23-4867-8BAE-489E0D0B6EE4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3AF0579B-6852-40FD-A91C-3933942212C1}
+	EndGlobalSection
+EndGlobal

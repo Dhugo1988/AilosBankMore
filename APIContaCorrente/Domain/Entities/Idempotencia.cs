@@ -1,0 +1,23 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace APIContaCorrente.Domain.Entities
+{
+    public class Idempotencia
+    {
+        [Key]
+        [StringLength(37)]
+        [Column("chave_idempotencia")]
+        public string ChaveIdempotencia { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(1000)]
+        [Column("requisicao")]
+        public string? Requisicao { get; set; }
+
+        [Required]
+        [StringLength(1000)]
+        [Column("resultado")]
+        public string? Resultado { get; set; }
+    }
+}

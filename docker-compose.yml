@@ -1,0 +1,353 @@
+services:
+  # ZooKeeper - Necessário para o Kafka
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: ailos-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: yes
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok || exit 1"]
+      interval: 60s
+      timeout: 20s
+      retries: 2
+      start_period: 120s
+
+  # Kafka Broker
+  kafka:
+    image: bitnami/kafka:3.4
+    container_name: ailos-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: yes
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Init Container para criar tópicos Kafka
+  kafka-init:
+    image: bitnami/kafka:3.4
+    container_name: ailos-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - ailos-network
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - >
+        echo 'Aguardando Kafka estar totalmente pronto...' &&
+        until kafka-topics --bootstrap-server kafka:9092 --list --command-config <(echo 'security.protocol=PLAINTEXT') > /dev/null 2>&1; do
+          echo 'Kafka ainda não está pronto, aguardando...' &&
+          sleep 5;
+        done &&
+        echo 'Kafka está pronto! Criando tópicos...' &&
+        echo 'Criando tópico transferencias-realizadas...' &&
+        kafka-topics --bootstrap-server kafka:9092 --create --topic transferencias-realizadas --partitions 1 --replication-factor 1 --if-not-exists &&
+        echo 'Criando tópico tarifacoes-realizadas...' &&
+        kafka-topics --bootstrap-server kafka:9092 --create --topic tarifacoes-realizadas --partitions 1 --replication-factor 1 --if-not-exists &&
+        echo 'Tópicos criados com sucesso!' &&
+        kafka-topics --bootstrap-server kafka:9092 --list &&
+        echo 'Init container concluído!'
+
+  # Banco de dados para Conta Corrente - Réplica 1
+  db-contacorrente-1:
+    image: alpine:latest
+    container_name: ailos-db-contacorrente-1
+    volumes:
+      - ./data/contacorrente-1:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    networks:
+      - ailos-network
+    restart: unless-stopped
+
+  # Banco de dados para Conta Corrente - Réplica 2
+  db-contacorrente-2:
+    image: alpine:latest
+    container_name: ailos-db-contacorrente-2
+    volumes:
+      - ./data/contacorrente-2:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    networks:
+      - ailos-network
+    restart: unless-stopped
+
+  # Banco de dados para Transferência - Réplica 1
+  db-transferencia-1:
+    image: alpine:latest
+    container_name: ailos-db-transferencia-1
+    volumes:
+      - ./data/transferencia-1:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    networks:
+      - ailos-network
+    restart: unless-stopped
+
+  # Banco de dados para Transferência - Réplica 2
+  db-transferencia-2:
+    image: alpine:latest
+    container_name: ailos-db-transferencia-2
+    volumes:
+      - ./data/transferencia-2:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    networks:
+      - ailos-network
+    restart: unless-stopped
+
+  # Banco de dados para Tarifa - Réplica 1
+  db-tarifa-1:
+    image: alpine:latest
+    container_name: ailos-db-tarifa-1
+    volumes:
+      - ./data/tarifa-1:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    networks:
+      - ailos-network
+    restart: unless-stopped
+
+  # Banco de dados para Tarifa - Réplica 2
+  db-tarifa-2:
+    image: alpine:latest
+    container_name: ailos-db-tarifa-2
+    volumes:
+      - ./data/tarifa-2:/data
+    command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"]
+    networks:
+      - ailos-network
+    restart: unless-stopped
+  # Conta Corrente Microservice - Réplica 1
+  ailos-contacorrente-1:
+    build:
+      context: ./APIContaCorrente
+      dockerfile: Dockerfile
+    container_name: ailos-contacorrente-1
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/data/ContaCorrente.db
+      - Jwt__Key=dev-secret-please-change-in-production
+      - Kafka__BootstrapServers=kafka:9092
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db-contacorrente-1:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    volumes:
+      - ./data/contacorrente-1:/data
+
+  # Conta Corrente Microservice - Réplica 2
+  ailos-contacorrente-2:
+    build:
+      context: ./APIContaCorrente
+      dockerfile: Dockerfile
+    container_name: ailos-contacorrente-2
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/data/ContaCorrente.db
+      - Jwt__Key=dev-secret-please-change-in-production
+      - Kafka__BootstrapServers=kafka:9092
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db-contacorrente-2:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    volumes:
+      - ./data/contacorrente-2:/data
+
+  # Transferencia Microservice - Réplica 1
+  ailos-transferencia-1:
+    build:
+      context: ./APITransferencia
+      dockerfile: Dockerfile
+    container_name: ailos-transferencia-1
+    ports:
+      - "5002:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__TransferenciaConnection=Data Source=/data/Transferencia.db
+      - Jwt__Key=dev-secret-please-change-in-production
+      - ContaCorrente__BaseUrl=http://ailos-contacorrente-1:8080/
+      - Kafka__BootstrapServers=kafka:9092
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    depends_on:
+      - kafka
+      - ailos-contacorrente-1
+      - ailos-contacorrente-2
+      - db-transferencia-1
+    volumes:
+      - ./data/transferencia-1:/data
+
+  # Transferencia Microservice - Réplica 2
+  ailos-transferencia-2:
+    build:
+      context: ./APITransferencia
+      dockerfile: Dockerfile
+    container_name: ailos-transferencia-2
+    ports:
+      - "5003:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__TransferenciaConnection=Data Source=/data/Transferencia.db
+      - Jwt__Key=dev-secret-please-change-in-production
+      - ContaCorrente__BaseUrl=http://ailos-contacorrente-2:8080/
+      - Kafka__BootstrapServers=kafka:9092
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    depends_on:
+      - kafka
+      - ailos-contacorrente-1
+      - ailos-contacorrente-2
+      - db-transferencia-2
+    volumes:
+      - ./data/transferencia-2:/data
+
+  # Tarifa Microservice - Réplica 1
+  ailos-tarifa-1:
+    build:
+      context: ./APITarifa
+      dockerfile: Dockerfile
+    container_name: ailos-tarifa-1
+    ports:
+      - "5004:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/data/Tarifa.db
+      - Jwt__Key=dev-secret-please-change-in-production
+      - Kafka__BootstrapServers=kafka:9092
+      - Tarifa__ValorTransferencia=2.00
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db-tarifa-1:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./data/tarifa-1:/data
+
+  # Tarifa Microservice - Réplica 2
+  ailos-tarifa-2:
+    build:
+      context: ./APITarifa
+      dockerfile: Dockerfile
+    container_name: ailos-tarifa-2
+    ports:
+      - "5005:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/data/Tarifa.db
+      - Jwt__Key=dev-secret-please-change-in-production
+      - Kafka__BootstrapServers=kafka:9092
+      - Tarifa__ValorTransferencia=2.00
+    networks:
+      - ailos-network
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      db-tarifa-2:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./data/tarifa-2:/data
+
+  # Load balancer usando nginx para distribuir o tráfego entre as réplicas
+  nginx:
+    image: nginx:alpine
+    container_name: ailos-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - ailos-network
+    depends_on:
+      - ailos-contacorrente-1
+      - ailos-contacorrente-2
+      - ailos-transferencia-1
+      - ailos-transferencia-2
+      - ailos-tarifa-1
+      - ailos-tarifa-2
+    restart: unless-stopped
+
+networks:
+  ailos-network:
+    driver: bridge
+
+volumes:
+  ailos-data:

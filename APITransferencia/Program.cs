@@ -91,7 +91,7 @@ builder.Services.AddHttpClient("ContaCorrente", client =>
 });
 
 builder.Services.AddScoped<ITransferenciaProducer, TransferenciaProducer>();
-
+builder.Services.AddScoped<ITransferenciaDbContext, TransferenciaDbContext>();
 builder.Services.AddScoped<APITransferencia.Application.Services.IMappingService, APITransferencia.Application.Services.MappingService>();
 
 builder.Services.AddHealthChecks();
